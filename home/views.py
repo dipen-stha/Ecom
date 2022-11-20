@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .views import *
 from django.views.generic import View
@@ -154,6 +155,53 @@ def delete_cart(request,slug):
     username = request.user.username
     Cart.objects.filter(slug = slug,username = username, checkout = False).delete()
     return redirect('/cart')
+
+class WishlistView(BaseView):
+    def get(self,request):
+        self.context
+        username = request.user.username
+        self.context['wish_views']=Wishlist.objects.filter(username=username)
+
+        return render(request,'wishlist.html',self.context)
+
+def add_to_wishlist(request,slug):
+    username = request.user.username
+    if Wishlist.objects.filter(slug = slug, username = username).exists():
+        quantity = Wishlist.objects.get(slug = slug, username = username).quantity
+        price = Product.objects.get(slug=slug).price
+        discounted_price = Product.objects.get(slug=slug).discounted_price
+        if discounted_price > 0:
+            original_price = discounted_price
+        else:
+            original_price = price
+        if quantity>1:
+            quantity = quantity + 1
+        Wishlist.objects.filter(slug=slug,username=username).update(quantity=quantity,price=price)
+        return redirect('/wishlist')
+    else:
+        price = Product.objects.get(slug=slug).price
+        discounted_price = Product.objects.get(slug=slug).discounted_price
+        if discounted_price > 0:
+            original_price = discounted_price
+        else:
+            original_price = price
+        data = Wishlist.objects.create(slug=slug,
+                                       username=username,
+                                       price=original_price,
+                                       items=Product.objects.filter(slug=slug)[0],
+                                       )
+        data.save()
+        return redirect('/wishlist')
+def delete_wishlist(request,slug):
+    username = request.user.username
+    Wishlist.objects.filter(slug = slug,username = username).delete()
+    return redirect('/wishlist')
+
+def count_objects(request):
+    count_cart = Cart.objects.all().count()
+    count_wish = Wishlist.objects.all().count()
+    count = {'count_cart':count_cart,'count_wish':count_wish}
+    return render(request,'home/base.html',count)
 
 #----------------------------------------------------------API------------------------------------
 from django.urls import path, include
